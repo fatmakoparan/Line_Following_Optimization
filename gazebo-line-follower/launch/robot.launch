@@ -1,0 +1,9 @@
+<launch>
+  <!-- TurtleBot3'ün URDF dosyasını xacro ile yükle -->
+  <param name="robot_description" command="$(find xacro)/xacro '$(find turtlebot3_description)/urdf/turtlebot3_waffle.urdf.xacro'"/>
+
+  <!-- Robotu Gazebo'da spawn et -->
+  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" output="screen"
+        args="-urdf -param robot_description -model turtlebot3_waffle" />
+</launch>
+

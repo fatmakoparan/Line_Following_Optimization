@@ -1,0 +1,30 @@
+<launch>
+
+    <!-- Gazebo'yu Başlat -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <env name="GAZEBO_RESOURCE_PATH" value="$(find enph353_ros_lab)"/>
+        <env name="GAZEBO_MODEL_PATH" value="$(find enph353_ros_lab)/models"/>
+        <arg name="world_name" value="$(find enph353_ros_lab)/worlds/353_ros_lab.world"/>
+        <arg name="gui" value="true"/>
+        <arg name="paused" value="false"/>
+        <arg name="use_sim_time" value="true"/>
+        <arg name="headless" value="false"/>
+    </include>
+
+    <!-- Robot'u Başlat -->
+    <include file="$(find enph353_ros_lab)/launch/robot.launch">
+    </include>
+
+    <!-- TurtleBot'un URDF Dosyasını Spawnetme -->
+    <param name="robot_description" command="$(find xacro)/xacro $(find turtlebot3_description)/urdf/turtlebot3_waffle.urdf.xacro"/>
+
+    <!-- Robot'u Hareket Ettirme -->
+    <include file="$(find enph353_ros_lab)/launch/move_robot.launch"/>
+
+
+    <!-- RQT Image View ile Görüntüleme -->
+    <node pkg="rqt_image_view" type="rqt_image_view" name="rqt_image_view" args="/camera/rgb/image_raw"/>
+
+    
+</launch>
+

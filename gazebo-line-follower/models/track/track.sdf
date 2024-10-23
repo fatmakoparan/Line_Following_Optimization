@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<sdf version="1.4">
+  <model name="track">
+    <static>true</static>
+    <link name="link">
+      <!-- Pist Çarpışma Geometrisi -->
+      <collision name="collision">
+        <geometry>
+          <plane>
+            <normal>0 0 1</normal>
+            <size> 20 20</size> <!-- Pist boyutunu buradan ayarlayabilirsin -->
+          </plane>
+        </geometry>
+        <surface>
+          <friction>
+            <ode>
+              <mu>100</mu>
+              <mu2>100</mu2>
+            </ode>
+          </friction>
+        </surface>
+      </collision>
+      
+      <!-- Pist Görünüm Geometrisi ve Dokusu -->
+      <visual name="visual">
+        <cast_shadows>false</cast_shadows>
+        <pose>0 0 0</pose>
+        <geometry>
+          <plane>
+            <normal>0 0 1</normal>
+            <size>20 20</size> <!-- Pist boyutu, yukarıdaki ile aynı olmalı -->
+          </plane>
+        </geometry>
+        <material>
+          <script>
+            <uri>file://materials/scripts</uri>
+            <uri>file://materials/textures</uri>
+            <name>track</name>
+          </script>
+          <texture>
+            <diffuse>file://materials/textures/pist.png</diffuse> <!-- Pist için doku dosyası -->
+          </texture>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>
+
