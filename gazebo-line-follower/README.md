@@ -1,3 +1,2 @@
 # gazebo-line-follower
-A robot that follows lines, finds the most optimized path, and navigates around obstacles when it encounters them.
-
+A robot that tracks lines in simulation using Gazebo and finds the optimized path when obstacles appear
