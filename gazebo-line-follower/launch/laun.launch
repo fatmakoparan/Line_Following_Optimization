@@ -18,9 +18,11 @@
     <!-- TurtleBot'un URDF Dosyasını Spawnetme -->
     <param name="robot_description" command="$(find xacro)/xacro $(find turtlebot3_description)/urdf/turtlebot3_waffle.urdf.xacro"/>
 
+    <!-- Waypoints'i Başlat -->
+    <include file="$(find enph353_ros_lab)/launch/waypoints.launch" />
+    
     <!-- Robot'u Hareket Ettirme -->
     <include file="$(find enph353_ros_lab)/launch/move_robot.launch"/>
-
 
     <!-- RQT Image View ile Görüntüleme -->
     <node pkg="rqt_image_view" type="rqt_image_view" name="rqt_image_view" args="/camera/rgb/image_raw"/>

@@ -1,0 +1,109 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="waypoints">
+  
+  <!-- Durak Noktası A -->
+  <link name="waypoint_A">
+    <pose>-2 2 0.1 0 0 0</pose> <!-- Sol üst köşe -->
+    <visual>
+      <geometry>
+        <sphere radius="0.1"/>
+      </geometry>
+      <material>
+        <color rgba="1 0 0 1"/> <!-- Kırmızı -->
+      </material>
+    </visual>
+  </link>
+
+  <!-- Durak Noktası B -->
+  <link name="waypoint_B">
+    <pose>0 2 0.1 0 0 0</pose> <!-- Üst orta -->
+    <visual>
+      <geometry>
+        <sphere radius="0.1"/>
+      </geometry>
+      <material>
+        <color rgba="0 1 0 1"/> <!-- Yeşil -->
+      </material>
+    </visual>
+  </link>
+
+  <!-- Durak Noktası C -->
+  <link name="waypoint_C">
+    <pose>2 2 0.1 0 0 0</pose> <!-- Sağ üst köşe -->
+    <visual>
+      <geometry>
+        <sphere radius="0.1"/>
+      </geometry>
+      <material>
+        <color rgba="0 0 1 1"/> <!-- Mavi -->
+      </material>
+    </visual>
+  </link>
+
+  <!-- Durak Noktası D -->
+  <link name="waypoint_D">
+    <pose>-2 0 0.1 0 0 0</pose> <!-- Orta sol -->
+    <visual>
+      <geometry>
+        <sphere radius="0.1"/>
+      </geometry>
+      <material>
+        <color rgba="1 1 0 1"/> <!-- Sarı -->
+      </material>
+    </visual>
+  </link>
+
+  <!-- Durak Noktası E -->
+  <link name="waypoint_E">
+    <pose>2 0 0.1 0 0 0</pose> <!-- Orta sağ -->
+    <visual>
+      <geometry>
+        <sphere radius="0.1"/>
+      </geometry>
+      <material>
+        <color rgba="1 0 1 1"/> <!-- Mor -->
+      </material>
+    </visual>
+  </link>
+
+  <!-- Durak Noktası F -->
+  <link name="waypoint_F">
+    <pose>-2 -2 0.1 0 0 0</pose> <!-- Sol alt köşe -->
+    <visual>
+      <geometry>
+        <sphere radius="0.1"/>
+      </geometry>
+      <material>
+        <color rgba="0 1 1 1"/> <!-- Turkuaz -->
+      </material>
+    </visual>
+  </link>
+
+  <!-- Durak Noktası G -->
+  <link name="waypoint_G">
+    <pose>0 -2 0.1 0 0 0</pose> <!-- Alt orta -->
+    <visual>
+      <geometry>
+        <sphere radius="0.1"/>
+      </geometry>
+      <material>
+        <color rgba="0.5 0.5 0.5 1"/> <!-- Gri -->
+      </material>
+    </visual>
+  </link>
+
+  <!-- Durak Noktası H -->
+  <link name="waypoint_H">
+    <pose>2 -2 0.1 0 0 0</pose> <!-- Sağ alt köşe -->
+    <visual>
+      <geometry>
+        <sphere radius="0.1"/>
+      </geometry>
+      <material>
+        <color rgba="1 0.5 0 1"/> <!-- Turuncu -->
+      </material>
+    </visual>
+  </link>
+
+</robot>
+

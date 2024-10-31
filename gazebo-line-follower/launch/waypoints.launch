@@ -1,0 +1,11 @@
+<launch>
+
+    <!-- Gazebo'yu yalnızca waypoint modelini eklemek için başlatma -->
+    <param name="waypoints_description" command="$(find xacro)/xacro '$(find enph353_ros_lab)/urdf/waypoints.xacro'" />
+
+    <!-- Waypointleri Gazebo'ya Spawnetme -->
+    <node name="spawn_waypoints" pkg="gazebo_ros" type="spawn_model" output="screen"
+          args="-urdf -param waypoints_description -model waypoints" />
+
+</launch>
+

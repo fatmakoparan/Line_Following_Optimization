@@ -8,7 +8,7 @@
         <geometry>
           <plane>
             <normal>0 0 1</normal>
-            <size> 20 20</size> <!-- Pist boyutunu buradan ayarlayabilirsin -->
+            <size>10 6</size> <!-- Uzun kenar 10, kısa kenar 6 -->
           </plane>
         </geometry>
         <surface>
@@ -28,7 +28,7 @@
         <geometry>
           <plane>
             <normal>0 0 1</normal>
-            <size>20 20</size> <!-- Pist boyutu, yukarıdaki ile aynı olmalı -->
+            <size>10 6</size> <!-- Pist boyutu, yukarıdaki ile aynı olmalı -->
           </plane>
         </geometry>
         <material>
