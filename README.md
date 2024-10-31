@@ -1,2 +1,2 @@
 # Line_Following_Optimization
-A robot that tracks lines in simulation using Gazebo and finds the optimized path when obstacles appear
+A robot that finds the optimized path in the simulation and detects and navigates around obstacles
