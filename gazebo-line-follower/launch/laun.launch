@@ -17,9 +17,6 @@
 
     <!-- TurtleBot'un URDF Dosyasını Spawnetme -->
     <param name="robot_description" command="$(find xacro)/xacro $(find turtlebot3_description)/urdf/turtlebot3_waffle.urdf.xacro"/>
-
-    <!-- Waypoints'i Başlat -->
-    <include file="$(find enph353_ros_lab)/launch/waypoints.launch" />
     
     <!-- Robot'u Hareket Ettirme -->
     <include file="$(find enph353_ros_lab)/launch/move_robot.launch"/>
