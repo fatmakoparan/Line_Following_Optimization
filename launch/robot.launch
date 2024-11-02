@@ -1,0 +1,16 @@
+<launch>
+  <!-- TurtleBot3'ün URDF dosyasını xacro ile yükle -->
+  <param name="robot_description" command="$(find xacro)/xacro '$(find turtlebot3_description)/urdf/turtlebot3_waffle.urdf.xacro'"/>
+
+  <!-- Başlangıç pozisyonu için argümanları tanımla -->
+  <arg name="x_pos" default="3.65681"/>
+  <arg name="y_pos" default="2.41671"/>
+  <arg name="z_pos" default="0.001008"/>
+  <arg name="yaw" default="3.14159"/> <!-- 180 derece döndürme -->
+
+  <!-- Robotu Gazebo'da spawn et ve başlangıç pozisyonunu ayarla -->
+  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" output="screen"
+        args="-urdf -param robot_description -model turtlebot3_waffle -x $(arg x_pos) -y $(arg y_pos) -z $(arg z_pos) -Y $(arg yaw)"/>
+        
+</launch>
+
