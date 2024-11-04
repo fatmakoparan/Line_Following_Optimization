@@ -221,4 +221,3 @@ if __name__ == "__main__":
     pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
 
     rospy.spin()
-
