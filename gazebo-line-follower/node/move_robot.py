@@ -15,13 +15,15 @@ STRAIGHT_SPD = 0.25  # Speed for moving straight
 TURN_SPEED = 0.15    # Speed for light turning
 ANGULAR_VEL = 1.25   # Angular velocity for turning
 SAFE_DISTANCE = 1.0  # Obstacle avoidance distance
+WAIT_TIME_AFTER_STOP = 2  # Waiting time after reaching the target (seconds)
 WAIT_TIME = 10       # Waiting time after detecting an obstacle (seconds)
+LANE_CHANGE_DISTANCE = 0.5  # Distance to move into the left lane (meters)
 SHOULDER_DISTANCE = 0.4  # Maximum lateral deviation from the lane (40 cm)
 
 # Target coordinates
-target_x = 3.59106
-target_y = -2.3663
-target_reached = False  # Has the target been reached?
+target_b_x = 1.02
+target_b_y = 2.41
+target_b_reached = False  # Has the target been reached?
 
 # Global Variables
 obstacle_detected = False  # Is there an obstacle?
@@ -35,19 +37,44 @@ current_yaw = 0.0          # Current yaw angle
 
 # Odometry callback to get current yaw and position
 def odometry_callback(data):
-    global current_x, current_y, current_yaw, target_reached
+    global current_x, current_y, target_b_reached
 
-    # Update position and orientation
+    # Update position
     current_x = data.pose.pose.position.x
     current_y = data.pose.pose.position.y
-    orientation_q = data.pose.pose.orientation
-    orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
-    _, _, current_yaw = euler_from_quaternion(orientation_list)
+
+    # Log current position
+    rospy.loginfo(f"Current position: x={current_x:.2f}, y={current_y:.2f}")
 
     # Check proximity to the target
-    if abs(current_x - target_x) < 0.1 and abs(current_y - target_y) < 0.1:
-        rospy.loginfo("Target reached!")
-        target_reached = True
+    if not target_b_reached and abs(current_x - target_b_x) < 0.1 and abs(current_y - target_b_y) < 0.1:
+        rospy.loginfo("Target D reached! Stopping and preparing for left turn.")
+        target_b_reached = True
+        stop_and_turn_left()
+
+# Function to stop, turn left, and move into the left lane
+def stop_and_turn_left():
+    rospy.loginfo("Stopping for 2 seconds at target.")
+    move = Twist()
+    move.linear.x = 0
+    move.angular.z = 0
+    pub.publish(move)  # Robotu durdur
+    rospy.sleep(WAIT_TIME_AFTER_STOP)  # 2 saniye bekle
+
+    rospy.loginfo("Turning 90 degrees left.")
+    turn_angle(3.14159 / 2)  # 90 derece sola dön (artık daha yavaş hızda)
+
+    rospy.loginfo("Stopping for 2 seconds after turning.")
+    move.linear.x = 0
+    move.angular.z = 0
+    pub.publish(move)  # Robotu durdur
+    rospy.sleep(WAIT_TIME_AFTER_STOP)  # 2 saniye bekle
+
+    rospy.loginfo("Moving forward after lane change.")
+    go_straight(1.0)  # 1 metre düz ilerle
+
+    rospy.loginfo("Lane change and forward movement completed.")
+
 
 # LIDAR callback for obstacle detection
 def lidar_callback(data):
@@ -145,9 +172,9 @@ def etrafindan_dolan():
 
 # Camera callback for lane tracking
 def camera_callback(data):
-    global in_lane, target_reached, lane_offset
+    global in_lane, target_b_reached, lane_offset
 
-    if target_reached:
+    if target_b_reached:
         # Stop the robot if the target is reached
         move = Twist()
         move.linear.x = 0
