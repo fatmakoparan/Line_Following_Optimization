@@ -15,14 +15,14 @@ from sensor_msgs.msg import Image, LaserScan
 STRAIGHT_SPD = 0.25  # Speed for moving straight
 TURN_SPEED = 0.15    # Speed for light turning
 ANGULAR_VEL = 1.25   # Angular velocity for turning
-SAFE_DISTANCE = 1.0  # Obstacle avoidance distance
+SAFE_DISTANCE = 0.5  # Obstacle avoidance distance
 WAIT_TIME_AFTER_STOP = 2  # Waiting time after reaching the target (seconds)
 WAIT_TIME = 10       # Waiting time after detecting an obstacle (seconds)
 LANE_CHANGE_DISTANCE = 0.5  # Distance to move into the left lane (meters)
 SHOULDER_DISTANCE = 0.4  # Maximum lateral deviation from the lane (40 cm)
 
 # Target coordinates
-target_b_x = 1.79
+target_b_x = 1.02
 target_b_y = 2.41
 target_b_reached = False  # Has the target been reached?
 
@@ -36,33 +36,31 @@ current_x = 0.0            # Current x position
 current_y = 0.0            # Current y position
 current_yaw = 0.0          # Current yaw angle
 
-
+# Turn a specified angle based on yaw
 def turn_angle(target_angle):
     global current_yaw
 
     move = Twist()
-    initial_yaw = current_yaw  # Başlangıç yönelim açısını kaydet
-    target_yaw = initial_yaw + target_angle  # Yeni hedef yönelim açısı
+    target_yaw = current_yaw + target_angle
 
-    # Açıyı [-pi, pi] aralığında normalize et
-    target_yaw = math.atan2(math.sin(target_yaw), math.cos(target_yaw))
+    # Keep angle within [-pi, pi]
+    if target_yaw > 3.14159:
+        target_yaw -= 2 * 3.14159
+    elif target_yaw < -3.14159:
+        target_yaw += 2 * 3.14159
 
-    rospy.loginfo(f"Turning to target yaw: {math.degrees(target_yaw)} degrees (Current: {math.degrees(current_yaw)})")
-
+    # Turn until the target angle is reached
     rate = rospy.Rate(10)  # 10 Hz kontrol
-    timeout = rospy.Time.now() + rospy.Duration(7)  # Maks 7 saniye içinde bitmeli
-
-    while abs(math.atan2(math.sin(target_yaw - current_yaw), math.cos(target_yaw - current_yaw))) > 0.05:  
-        if rospy.Time.now() > timeout:  # Sonsuz döngüyü engellemek için max süre
-            rospy.logwarn(f"Turn timeout reached! Stopping turn. (Final Yaw: {math.degrees(current_yaw)})")
-            move = Twist()
-            move.linear.x = 0
-            move.angular.z = 0
-            break
-        move.angular.z = 0.2 if target_yaw > current_yaw else -0.2  # Daha düşük hızda dönüş
+    while abs(target_yaw - current_yaw) > 0.05:
+        move.angular.z = 0.5 if target_angle > 0 else -0.5
         pub.publish(move)
         rate.sleep()
 
+    # Stop after the turn is complete
+    move.angular.z = 0
+    pub.publish(move)
+    rospy.sleep(0.1)  # Dönüş tamamlandıktan sonra duraksama
+    
 # Function to move a specified distance in a straight line
 def go_straight(distance):
     global current_x, current_y
@@ -89,25 +87,6 @@ def go_straight(distance):
     move.linear.x = 0
     pub.publish(move)
     
-def go_straight1():
-    move = Twist()
-    move.linear.x = STRAIGHT_SPD  # Düz ilerleme hızı
-    move.angular.z = 0  # Açısal hareket yok
-
-    rospy.loginfo("Moving straight for 4 seconds...")
-
-    rate = rospy.Rate(10)  # 10 Hz yayınlama
-    start_time = rospy.Time.now()
-    
-    while rospy.Time.now() - start_time < rospy.Duration(4):
-        pub.publish(move)
-        rate.sleep()
-
-    # Hareketi durdur
-    stop_moving()
-    rospy.loginfo("Stopped after 4 seconds of straight movement.")
-
-
 def stop_moving():
     move = Twist()
     move.linear.x = 0
@@ -143,25 +122,33 @@ def check_lane():
 def stop_and_turn_left():
     rospy.loginfo("Starting left turn maneuver...")
 
-    # Step 1: 15 derece sola dön
-    turn_angle(math.radians(15))  # 15 derece dönüş
+    # Step 3: Turn 90 degrees left
+    turn_angle(3.14159 / 2)
 
     # Hareketi durdur
     stop_moving()
 
     # Step 2: 4 saniye düz git
-    go_straight1()
+    go_straight(4.0)
 
     # Hareketi durdur
     stop_moving()
-    
-    # Step 1: 30-45 derece sola dön
-    turn_angle(math.radians(20))  # 15 derece dönüş
 
-    # Step 2: 5 saniye düz git
-    go_straight1()
-    
-    rospy.loginfo("Finished navigating around obstacle, returning to lane tracking.")
+    # **Şeridi kontrol et**
+    rospy.loginfo("Checking for lane in front...")
+    if check_lane():
+        rospy.loginfo("✅ Lane detected! Activating lane tracking...")
+        
+        # **Şerit takibini zorunlu başlat**
+        for _ in range(5):
+            img_msg = rospy.wait_for_message('/camera/rgb/image_raw', Image, timeout=1)
+            camera_callback(img_msg)
+            rospy.sleep(0.5)
+    else:
+        rospy.loginfo("❌ No lane detected, moving forward...")
+        go_straight1()
+
+    rospy.loginfo("🏁 Lane change completed successfully.")
 
 # Odometry callback to get current position
 def odometry_callback(data):
@@ -193,7 +180,7 @@ def lidar_callback(data):
         obstacle_detected = True
         if not sound_played:
             rospy.loginfo("Obstacle detected, playing sound...")
-            os.system('aplay /home/fatmak/catkin_ws/src/sounds/alert.wav')
+            os.system('aplay /home/fatma/catkin_ws/src/sounds/alert.wav')
             sound_played = True
             etrafindan_dolan()
     else:
@@ -209,19 +196,19 @@ def etrafindan_dolan():
     turn_angle(-3.14159 / 2)
 
     # Step 2: Move forward 50 cm
-    go_straight(0.6)
+    go_straight(0.3)
 
     # Step 3: Turn 90 degrees left
     turn_angle(3.14159 / 2)
 
     # Step 4: Move forward 2.2 meters
-    go_straight(2.2)
+    go_straight(0.6)
 
     # Step 5: Turn 90 degrees left
     turn_angle(3.14159 / 2)
 
     # Step 6: Move forward 50 cm
-    go_straight(0.6)
+    go_straight(0.3)
 
     # Step 7: Turn 90 degrees right
     turn_angle(-3.14159 / 2)
@@ -283,7 +270,7 @@ def camera_callback(data):
                 lane_offset = 0
                 move.linear.x = STRAIGHT_SPD
                 move.angular.z = 0
-                rospy.loginfo("Lane centered, moving straight.")
+#                rospy.loginfo("Lane centered, moving straight.")
             else:
                 # No lane detected, search slowly
                 move.linear.x = TURN_SPEED / 2
