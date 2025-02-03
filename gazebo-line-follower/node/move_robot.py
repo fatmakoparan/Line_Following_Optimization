@@ -86,13 +86,6 @@ def go_straight(distance):
     # Stop moving
     move.linear.x = 0
     pub.publish(move)
-    
-def stop_moving():
-    move = Twist()
-    move.linear.x = 0
-    move.angular.z = 0
-    pub.publish(move)
-    rospy.sleep(0.5)  # Tam durmasını bekliyoruz
 
 def check_lane():
     """Kameradan gelen görüntüyü analiz ederek önünde şerit olup olmadığını kontrol eder."""
@@ -120,35 +113,57 @@ def check_lane():
         return False
 
 def stop_and_turn_left():
-    rospy.loginfo("Starting left turn maneuver...")
+    global current_yaw
 
-    # Step 3: Turn 90 degrees left
-    turn_angle(3.14159 / 2)
+    rospy.loginfo("🛑 Stopped at target. Preparing to turn left...")
 
-    # Hareketi durdur
-    stop_moving()
+    move = Twist()
 
-    # Step 2: 4 saniye düz git
-    go_straight(4.0)
+    # Adım 1: Robotu durdur
+    move.linear.x = 0
+    move.angular.z = 0
+    pub.publish(move)
+    rospy.sleep(1)  # 1 saniye bekleyerek tam durmasını sağla
 
-    # Hareketi durdur
-    stop_moving()
+    # Adım 2: Hedef açıyı belirle (90 derece sola dön)
+    target_yaw = current_yaw + math.radians(90)
 
-    # **Şeridi kontrol et**
-    rospy.loginfo("Checking for lane in front...")
-    if check_lane():
-        rospy.loginfo("✅ Lane detected! Activating lane tracking...")
+    # Açıyı [-pi, pi] aralığında normalize et
+    target_yaw = math.atan2(math.sin(target_yaw), math.cos(target_yaw))
+
+    rospy.loginfo(f"🔄 Turning left to target yaw: {math.degrees(target_yaw)} degrees")
+
+    rate = rospy.Rate(10)  # 10 Hz kontrol
+    timeout = rospy.Time.now() + rospy.Duration(5)  # Maks 5 saniyede dönüş tamamlanmalı
+
+    # Adım 3: Hedef açıyı yakalayana kadar dön
+    while abs(math.atan2(math.sin(target_yaw - current_yaw), math.cos(target_yaw - current_yaw))) > 0.05:
+        if rospy.Time.now() > timeout:
+            rospy.logwarn(f"Turn timeout reached! Stopping turn. (Final Yaw: {math.degrees(current_yaw)})")
+            break
         
-        # **Şerit takibini zorunlu başlat**
-        for _ in range(5):
-            img_msg = rospy.wait_for_message('/camera/rgb/image_raw', Image, timeout=1)
-            camera_callback(img_msg)
-            rospy.sleep(0.5)
-    else:
-        rospy.loginfo("❌ No lane detected, moving forward...")
-        go_straight1()
+        move.angular.z = 0.3  # Sola dönüş açısal hızı
+        pub.publish(move)
+        rate.sleep()
 
-    rospy.loginfo("🏁 Lane change completed successfully.")
+    # Adım 4: Dönmeyi durdur
+    move.angular.z = 0
+    pub.publish(move)
+    rospy.sleep(1)
+
+    rospy.loginfo("✅ Left turn completed. Moving forward...")
+
+    # Adım 5: Düz ileri git
+    move.linear.x = 0.25  # İleri hareket hızı
+    pub.publish(move)
+    rospy.sleep(2)  # 2 saniye ileri git
+
+    # Adım 6: Tamamen dur
+    move.linear.x = 0
+    move.angular.z = 0
+    pub.publish(move)
+
+    rospy.loginfo("🏁 Maneuver complete.")
 
 # Odometry callback to get current position
 def odometry_callback(data):
@@ -165,11 +180,13 @@ def odometry_callback(data):
     # Log current position
     #rospy.loginfo(f"Current position: x={current_x:.2f}, y={current_y:.2f}, yaw={current_yaw:.2f}")
 
-    # Check if robot reached the target
-    if not target_b_reached and abs(current_x - target_b_x) < 0.1 and abs(current_y - target_b_y) < 0.1:
-        rospy.loginfo("Target B reached! Preparing to stop and turn left.")
-        target_b_reached = True
-        stop_and_turn_left()
+    # Hedef noktaya ulaşıldı mı kontrol et
+    if not target_b_reached:
+        distance = math.sqrt((current_x - target_b_x) ** 2 + (current_y - target_b_y) ** 2)
+        if distance < 0.1:
+            rospy.loginfo(f"🚀 Arrived at Target ({target_b_x:.2f}, {target_b_y:.2f})! Executing turn maneuver.")
+            target_b_reached = True  # Tekrar çağırmasını engelle
+            stop_and_turn_left()
     
 # LIDAR callback for obstacle detection
 def lidar_callback(data):
