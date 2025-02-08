@@ -8,22 +8,21 @@
       <uri>model://sun</uri>
     </include>
 
-    <!-- Sabit engel -->
     <model name="small_obstacle">
       <static>true</static>
-      <pose>2.01079 2.46236 0.0 0 -0 0</pose>
+      <pose>2.48242 2.48267 0 0 -0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.05 0.05 0.05</size>
+              <size>0.05 0.05 0.5</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.05 0.05 0.05</size>
+              <size>0.05 0.05 0.5 </size>
             </box>
           </geometry>
           <material>
@@ -35,7 +34,7 @@
         </visual>
       </link>
     </model>
-
+    
     <gui>
       <camera name="user_camera">
         <pose>0.0 0.0 4.0 0.0 1.57 0.0</pose>
