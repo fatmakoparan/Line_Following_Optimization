@@ -23,7 +23,8 @@
 
     <!-- RQT Image View ile Görüntüleme -->
     <node pkg="rqt_image_view" type="rqt_image_view" name="rqt_image_view" args="/camera/rgb/image_raw"/>
-
     
-</launch>
+    <!-- draw.py Dosyasını Başlat -->
+    <node pkg="enph353_ros_lab" type="draw.py" name="draw_path_node" output="screen"/>
 
+</launch>
