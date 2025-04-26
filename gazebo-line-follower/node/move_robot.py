@@ -11,226 +11,116 @@ from tf.transformations import euler_from_quaternion
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image, LaserScan
 
-# Constants
-STRAIGHT_SPD = 0.25  # Speed for moving straight
-TURN_SPEED = 0.15    # Speed for light turning
-ANGULAR_VEL = 1.25   # Angular velocity for turning
-SAFE_DISTANCE = 0.5  # Obstacle avoidance distance
-WAIT_TIME_AFTER_STOP = 2  # Waiting time after reaching the target (seconds)
-WAIT_TIME = 10       # Waiting time after detecting an obstacle (seconds)
-LANE_CHANGE_DISTANCE = 0.5  # Distance to move into the left lane (meters)
-SHOULDER_DISTANCE = 0.4  # Maximum lateral deviation from the lane (40 cm)
+# --- Sabitler ---
+STRAIGHT_SPD = 0.25       # İleri hız
+TURN_SPEED = 0.15         # Hafif dönüş hızı
+ANGULAR_VEL = 1.25        # (rad/s) zaman temelli dönüş hızı
+SAFE_DISTANCE = 0.5       # Engel algılama eşiği
+LANE_CHANGE_DISTANCE = 0.5  # Şeride geçiş uzunluğu
+SHOULDER_DISTANCE = 0.4     # Şerit merkezinden max sapma
 
-# Target coordinates
-target_b_x = 1.02
-target_b_y = 2.41
-target_b_reached = False  # Has the target been reached?
+# --- Hedef Koordinatlar ve Durum Bayrakları ---
+target_x = -3.39
+target_y = 2.02
+target_b_reached = False    # Hedefe ulaşıldı mı?
+turned = False              # 90° dönüş yapıldı mı?
 
-'''
-# Target coordinates
-target_d_x = 1.12
-target_d_y = 2.42
-target_d_reached = False  # Has the target been reached?
-'''
+# --- Küresel Pozisyon ve Yön ---
+current_x = 0.0
+current_y = 0.0
+current_yaw = 0.0
 
-# Global Variables
-obstacle_detected = False  # Is there an obstacle?
-sound_played = False       # Has the obstacle sound been played?
-stop_time = 0              # Waiting time after obstacle detection
-in_lane = False            # Is the robot in the lane?
-lane_offset = 0            # Distance from the lane center
-current_x = 0.0            # Current x position
-current_y = 0.0            # Current y position
-current_yaw = 0.0          # Current yaw angle
+# --- Diğer Global Bayraklar ---
+obstacle_detected = False
+sound_played = False
 
-# Turn a specified angle based on yaw
+# Zaman temelli dönüş fonksiyonu (bloklamaz, odometri almaya devam eder)
 def turn_angle(target_angle):
-    global current_yaw
-
     move = Twist()
-    target_yaw = current_yaw + target_angle
+    direction = 1 if target_angle > 0 else -1
+    move.angular.z = direction * ANGULAR_VEL
 
-    # Keep angle within [-pi, pi]
-    if target_yaw > 3.14159:
-        target_yaw -= 2 * 3.14159
-    elif target_yaw < -3.14159:
-        target_yaw += 2 * 3.14159
-
-    # Turn until the target angle is reached
-    rate = rospy.Rate(10)  # 10 Hz kontrol
-    while abs(target_yaw - current_yaw) > 0.05:
-        move.angular.z = 0.5 if target_angle > 0 else -0.5
+    duration = abs(target_angle) / ANGULAR_VEL
+    t0 = rospy.Time.now().to_sec()
+    rate = rospy.Rate(20)
+    while rospy.Time.now().to_sec() - t0 < duration and not rospy.is_shutdown():
         pub.publish(move)
         rate.sleep()
+    pub.publish(Twist())
 
-    # Stop after the turn is complete
-    move.angular.z = 0
-    pub.publish(move)
-    rospy.sleep(0.1)  # Dönüş tamamlandıktan sonra duraksama
-    
-# Function to move a specified distance in a straight line
-def go_straight(distance):
+# Belirli mesafede düz gitme
+def go_straight(distance, speed=STRAIGHT_SPD):
     global current_x, current_y
-
-    # Record the starting position
-    initial_x = current_x
-    initial_y = current_y
-
+    x0, y0 = current_x, current_y
     move = Twist()
-    move.linear.x = STRAIGHT_SPD
-    pub.publish(move)
+    move.linear.x = speed
+    rate = rospy.Rate(20)
 
-    rate = rospy.Rate(10)  # 10 Hz döngü hızıyla kontrol sağla
-
-    # Move the desired distance
     while not rospy.is_shutdown():
-        current_distance = ((current_x - initial_x) ** 2 + (current_y - initial_y) ** 2) ** 0.5
-        if current_distance >= distance:
+        if math.hypot(current_x - x0, current_y - y0) >= distance:
             break
-        pub.publish(move)  # Her döngüde hız komutunu tekrar yayınla
-        rate.sleep()
-
-    # Stop moving
-    move.linear.x = 0
-    pub.publish(move)
-
-def go_straight_and_tracking():
-    global current_x, current_y, current_yaw
-
-    rospy.loginfo("🚗 Starting straight movement with lane tracking...")
-
-    initial_x = current_x
-    initial_y = current_y
-    distance_moved = 0
-    rate = rospy.Rate(10)  # 10 Hz kontrol
-
-    move = Twist()
-    move.linear.x = STRAIGHT_SPD  # Düz ilerleme hızı
-
-    while not rospy.is_shutdown() and distance_moved < 2.0:  # 2 metre boyunca düz git ve şerit takibi yap
-        try:
-            # Kamera görüntüsünü bekle ve işleme al
-            img_msg = rospy.wait_for_message('/camera/rgb/image_raw', Image, timeout=1)
-            img = bridge.imgmsg_to_cv2(img_msg, 'mono8')
-            _, img_bin = cv2.threshold(img, 128, 255, cv2.THRESH_BINARY_INV)
-
-            # Görüntünün alt kısmını analiz et
-            bottom_half = img_bin[-100:]
-            left_half = bottom_half[:, :bottom_half.shape[1] // 2]
-            right_half = bottom_half[:, bottom_half.shape[1] // 2:]
-
-            left_detected = np.sum(left_half) > 1000
-            right_detected = np.sum(right_half) > 1000
-
-            # Şerit algılama ve yönlendirme
-            if left_detected and not right_detected:
-                move.angular.z = 0.4  # Hafif sola dön
-                rospy.loginfo("🔄 Lane on left, turning left.")
-            elif right_detected and not left_detected:
-                move.angular.z = -0.4  # Hafif sağa dön
-                rospy.loginfo("🔄 Lane on right, turning right.")
-            elif left_detected and right_detected:
-                move.angular.z = 0  # Düz ilerle
-                rospy.loginfo("⬆️ Lane centered, moving straight.")
-            else:
-                move.angular.z = 0  # Şerit algılanmazsa düz gitmeye devam et
-                rospy.loginfo("❓ No clear lane detected, moving straight.")
-
-            pub.publish(move)
-
-        except rospy.ROSException as e:
-            rospy.logwarn(f"⚠️ Camera timeout: {e}")
-
-        # Odometry verisiyle hareketi kontrol et
-        distance_moved = math.sqrt((current_x - initial_x) ** 2 + (current_y - initial_y) ** 2)
-        #rospy.loginfo(f"Distance moved: {distance_moved:.2f} meters")
-        rate.sleep()
-
-    # Hareketi durdur
-    move.linear.x = 0
-    move.angular.z = 0
-    pub.publish(move)
-    rospy.loginfo("🏁 Lane tracking with forward movement completed.")
-
-def stop_and_turn_left():
-    global current_yaw
-
-    rospy.loginfo("🛑 Stopped at target. Preparing to turn left...")
-
-    move = Twist()
-
-    # Adım 1: Robotu durdur
-    move.linear.x = 0
-    move.angular.z = 0
-    pub.publish(move)
-    rospy.sleep(1)  # 1 saniye bekleyerek tam durmasını sağla
-
-    # Adım 2: Hedef açıyı belirle (90 derece sola dön)
-    target_yaw = current_yaw + math.radians(90)
-
-    # Açıyı [-pi, pi] aralığında normalize et
-    target_yaw = math.atan2(math.sin(target_yaw), math.cos(target_yaw))
-
-    rospy.loginfo(f"🔄 Turning left to target yaw: {math.degrees(target_yaw)} degrees")
-
-    rate = rospy.Rate(10)  # 10 Hz kontrol
-    timeout = rospy.Time.now() + rospy.Duration(6)  # Maks 5 saniyede dönüş tamamlanmalı
-
-    # Adım 3: Hedef açıyı yakalayana kadar dön
-    while abs(math.atan2(math.sin(target_yaw - current_yaw), math.cos(target_yaw - current_yaw))) > 0.05:
-        if rospy.Time.now() > timeout:
-            rospy.logwarn(f"Turn timeout reached! Stopping turn. (Final Yaw: {math.degrees(current_yaw)})")
-            break
-        
-        move.angular.z = 0.3  # Sola dönüş açısal hızı
         pub.publish(move)
         rate.sleep()
+    pub.publish(Twist())
 
-    # Adım 4: Dönmeyi durdur
-    move.angular.z = 0
-    pub.publish(move)
-    rospy.sleep(1)  # Durmasını bekle
+# Hedefe ulaşıldıktan sonra sağa sola dönüp şeride geçiş
+def stop_and_turn_left():
+    rospy.loginfo("🛑 Stopping and turning left...")
+    pub.publish(Twist())
+    rospy.sleep(1.0)
 
-    # Hareketi durdur
-    move.linear.x = 0
-    pub.publish(move)
-    rospy.sleep(1)
+    # 90° sola
+    turn_angle(math.radians(90))
 
-    rospy.loginfo("✅ Forward movement completed. Checking for lane...")
-    go_straight_and_tracking()
+    # Şeride gir
+    rospy.loginfo(f"⬆️ Moving straight {LANE_CHANGE_DISTANCE}m after turn")
+    go_straight(LANE_CHANGE_DISTANCE)
 
-# Odometry callback to get current position
-def odometry_callback(data):
-    global current_x, current_y, current_yaw, target_b_reached
+    rospy.loginfo("🚗 Resuming lane tracking (open-loop)")
+    go_straight(2.0)
 
-    # Update current position and orientation
-    current_x = data.pose.pose.position.x
-    current_y = data.pose.pose.position.y
+# Odometri callback: pozisyon-güncelleme ve hedef kontrolü
+def odometry_callback(msg):
+    global current_x, current_y, current_yaw, target_b_reached, turned
+    current_x = msg.pose.pose.position.x
+    current_y = msg.pose.pose.position.y
+    q = msg.pose.pose.orientation
+    _, _, current_yaw = euler_from_quaternion([q.x, q.y, q.z, q.w])
 
-    orientation_q = data.pose.pose.orientation
-    orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
-    _, _, current_yaw = euler_from_quaternion(orientation_list)
+    rospy.loginfo("📍 (x: %.2f, y: %.2f), Yaw: %.2f°",
+                  current_x, current_y, math.degrees(current_yaw))
 
-    # Log current position
-    #rospy.loginfo(f"Current position: x={current_x:.2f}, y={current_y:.2f}, yaw={current_yaw:.2f}")
-
-    # Hedef noktaya ulaşıldı mı kontrol et
     if not target_b_reached:
-        distance = math.sqrt((current_x - target_b_x) ** 2 + (current_y - target_b_y) ** 2)
-        if distance < 0.1:
-            rospy.loginfo(f"🚀 Arrived at Target ({target_b_x:.2f}, {target_b_y:.2f})! Executing turn maneuver.")
-            target_b_reached = True  # Tekrar çağırmasını engelle
-            stop_and_turn_left()
-    
-# LIDAR callback for obstacle detection
-def lidar_callback(data):
-    global obstacle_detected, sound_played, stop_time
+        # Hedefe yakınlık kontrolünü daha hassas yapalım
+        if math.isclose(current_x, target_x, abs_tol=0.1) and math.isclose(current_y, target_y, abs_tol=0.1):
+            rospy.loginfo("🚀 Target reached!")
+            target_b_reached = True
 
-    min_range = min(min(data.ranges[:15] + data.ranges[-15:]), data.range_max)
-    if min_range < SAFE_DISTANCE:
+    # Robot belirtilen konumdayken 90 derece sola dönsün ve düz gitmeye devam etsin
+    if target_b_reached and not turned:
+        # Hedef konumda dönüş yapmak için daha hassas kontrol
+        if math.isclose(current_x, -3.27, abs_tol=0.05) and math.isclose(current_y, 1.25, abs_tol=0.05):
+            rospy.loginfo("🛑 Stopping and turning left...")
+            pub.publish(Twist())  # Robotu durdur
+            rospy.sleep(1.0)  # Kısa bir bekleme
+
+            # 90 derece sola dön (mevcut işlevi değiştirmeden)
+            turn_angle(math.radians(90))
+
+            # Şimdi düz gitmeye devam et
+            rospy.loginfo(f"⬆️ Moving straight after turn")
+            go_straight(0.2)  # Düz gitme mesafesini 0.2 metreye ayarladım
+
+            turned = True
+
+# LIDAR callback: engel algılama ve dolanma
+def lidar_callback(data):
+    global obstacle_detected, sound_played
+    front_min = min(min(data.ranges[:15] + data.ranges[-15:]), data.range_max)
+    if front_min < SAFE_DISTANCE:
         obstacle_detected = True
         if not sound_played:
-            rospy.loginfo("Obstacle detected, playing sound...")
+            rospy.loginfo("🔊 Obstacle detected! Playing sound.")
             os.system('aplay /home/fatma/catkin_ws/src/sounds/alert.wav')
             sound_played = True
             etrafindan_dolan()
@@ -238,109 +128,66 @@ def lidar_callback(data):
         obstacle_detected = False
         sound_played = False
 
-
-# Function to navigate around an obstacle
+# Engel etrafından dolanma adımları
 def etrafindan_dolan():
-    rospy.loginfo("Navigating around obstacle...")
-
-    # Step 1: Turn 90 degrees right
-    turn_angle(-3.14159 / 2)
-
-    # Step 2: Move forward 50 cm
+    rospy.loginfo("↪️ Navigating around obstacle...")
+    turn_angle(-math.pi/2)
     go_straight(0.3)
-
-    # Step 3: Turn 90 degrees left
-    turn_angle(3.14159 / 2)
-
-    # Step 4: Move forward 2.2 meters
+    turn_angle(math.pi/2)
     go_straight(0.6)
-
-    # Step 5: Turn 90 degrees left
-    turn_angle(3.14159 / 2)
-
-    # Step 6: Move forward 50 cm
+    turn_angle(math.pi/2)
     go_straight(0.3)
+    turn_angle(-math.pi/2)
+    rospy.loginfo("✅ Finished obstacle avoidance.")
 
-    # Step 7: Turn 90 degrees right
-    turn_angle(-3.14159 / 2)
-
-    rospy.loginfo("Finished navigating around obstacle, returning to lane tracking.")
-
-# Camera callback for lane tracking
+# Kamera callback: şerit takibi
 def camera_callback(data):
-    global in_lane, target_b_reached, lane_offset
-
-    if target_b_reached:
-        # Stop the robot if the target is reached
-        move = Twist()
-        move.linear.x = 0
-        move.angular.z = 0
-        pub.publish(move)
+    global obstacle_detected
+    if obstacle_detected or target_b_reached:
         return
 
     try:
-        img_grayscale = bridge.imgmsg_to_cv2(data, 'mono8')
-        _, img_bin = cv2.threshold(img_grayscale, 128, 255, cv2.THRESH_BINARY_INV)
+        img = bridge.imgmsg_to_cv2(data, 'mono8')
+        _, bin_img = cv2.threshold(img, 128, 255, cv2.THRESH_BINARY_INV)
+        bottom = bin_img[-100:]  # Alt kısmı alıyoruz çünkü şerit genellikle alt kısmadır
 
-        # Split the bottom of the image in half
-        bottom_half = img_bin[-100:]  # Bottom part of the image
-        left_half = bottom_half[:, :bottom_half.shape[1] // 2]
-        right_half = bottom_half[:, bottom_half.shape[1] // 2:]
+        # Sol ve sağ kısmı ayırarak şerit algılamayı yapalım
+        left, right = bottom[:, :bottom.shape[1]//2], bottom[:, bottom.shape[1]//2:]
 
-        # Check for lane presence on the left or right
-        left_detected = np.sum(left_half) > 1000
-        right_detected = np.sum(right_half) > 1000
-
+        ld, rd = np.sum(left) > 1000, np.sum(right) > 1000
         move = Twist()
 
-        if not obstacle_detected:
-            if left_detected and not right_detected:
-                # If the lane is on the left, turn left slightly
-                lane_offset = 0.5  # Estimate distance from lane center (left)
-                if lane_offset >= SHOULDER_DISTANCE:
-                    move.linear.x = STRAIGHT_SPD / 2
-                    move.angular.z = 0.5  # Slightly turn left
-                    rospy.loginfo("Lane on left, turning left.")
-                else:
-                    move.linear.x = STRAIGHT_SPD
-                    move.angular.z = 0
-                    rospy.loginfo("Near lane, moving straight.")
-            elif right_detected and not left_detected:
-                # If the lane is on the right, turn right slightly
-                lane_offset = -0.5  # Estimate distance from lane center (right)
-                if abs(lane_offset) >= SHOULDER_DISTANCE:
-                    move.linear.x = STRAIGHT_SPD / 2
-                    move.angular.z = -0.5  # Slightly turn right
-                    rospy.loginfo("Lane on right, turning right.")
-                else:
-                    move.linear.x = STRAIGHT_SPD
-                    move.angular.z = 0
-                    rospy.loginfo("Near lane, moving straight.")
-            elif left_detected and right_detected:
-                # Lane is centered, move straight
-                lane_offset = 0
-                move.linear.x = STRAIGHT_SPD
-                move.angular.z = 0
-#                rospy.loginfo("Lane centered, moving straight.")
-            else:
-                # No lane detected, search slowly
-                move.linear.x = TURN_SPEED / 2
-                rospy.loginfo("No lane detected, searching.")
+        if ld and not rd:
+            move.angular.z = 0.5
+            rospy.loginfo("🔄 Lane on left, turning left.")
+        elif rd and not ld:
+            move.angular.z = -0.5
+            rospy.loginfo("🔄 Lane on right, turning right.")
+        else:
+            move.linear.x = STRAIGHT_SPD
+            rospy.loginfo("⬆️ Moving straight.")
 
         pub.publish(move)
 
     except CvBridgeError as e:
-        print(e)
+        rospy.logwarn(f"⚠️ CV Bridge error: {e}")
 
 if __name__ == "__main__":
     rospy.init_node('move_robot')
 
+    # Publisher & CvBridge
+    pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
     bridge = CvBridge()
 
-    rospy.Subscriber('/camera/rgb/image_raw', Image, camera_callback)
-    rospy.Subscriber('/scan', LaserScan, lidar_callback)
+    # Subscriber’lar
     rospy.Subscriber('/odom', Odometry, odometry_callback)
+    rospy.Subscriber('/scan', LaserScan, lidar_callback)
+    rospy.Subscriber('/camera/rgb/image_raw', Image, camera_callback)
 
-    pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
-
-    rospy.spin()
+    # Ana döngü: dönüşü bir kez yönet
+    rate = rospy.Rate(10)
+    while not rospy.is_shutdown():
+        if target_b_reached and not turned:
+            stop_and_turn_left()
+            turned = True
+        rate.sleep()
