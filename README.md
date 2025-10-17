@@ -13,7 +13,6 @@ The project emphasizes realistic implementation by combining **computer vision (
 -  **Obstacle Detection** – LIDAR-based detection with reactive behavior and buzzer alerts.  
 -  **Path Optimization** – Compares A\*, Dijkstra, and an ant-inspired heuristic approach.  
 -  **ROS Integration** – Utilizes ROS topics, publishers, and subscribers for communication.  
--  **Realistic Simulation** – Developed in Gazebo with Teknofest-style track design.  
 -  **Robust Testing** – Multiple test phases ensuring stability and real-world adaptability.  
 
 ---
