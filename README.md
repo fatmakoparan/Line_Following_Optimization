@@ -1,6 +1,6 @@
-# 🤖 Autonomous Robot Path Optimization and Obstacle Detection in Gazebo Simulation  
+# Autonomous Robot Path Optimization and Obstacle Detection in Gazebo Simulation  
 
-## 🚀 Overview  
+## Overview  
 This project focuses on developing an **autonomous mobile robot simulation** in the **Gazebo environment**, integrated with **ROS (Robot Operating System)**.  
 The goal is to simulate real-world navigation tasks such as **lane tracking**, **obstacle detection**, and **path optimization** using algorithms like **A\*** and **Dijkstra**.  
 
@@ -8,17 +8,17 @@ The project emphasizes realistic implementation by combining **computer vision (
 
 ---
 
-## 🧩 Features  
-- 🧠 **Autonomous Lane Tracking** – Implemented using camera input and OpenCV.  
-- 🧱 **Obstacle Detection** – LIDAR-based detection with reactive behavior and buzzer alerts.  
-- 🗺️ **Path Optimization** – Compares A\*, Dijkstra, and an ant-inspired heuristic approach.  
-- ⚙️ **ROS Integration** – Utilizes ROS topics, publishers, and subscribers for communication.  
-- 🧪 **Realistic Simulation** – Developed in Gazebo with Teknofest-style track design.  
-- 🦾 **Robust Testing** – Multiple test phases ensuring stability and real-world adaptability.  
+##  Features  
+-  **Autonomous Lane Tracking** – Implemented using camera input and OpenCV.  
+-  **Obstacle Detection** – LIDAR-based detection with reactive behavior and buzzer alerts.  
+-  **Path Optimization** – Compares A\*, Dijkstra, and an ant-inspired heuristic approach.  
+-  **ROS Integration** – Utilizes ROS topics, publishers, and subscribers for communication.  
+-  **Realistic Simulation** – Developed in Gazebo with Teknofest-style track design.  
+-  **Robust Testing** – Multiple test phases ensuring stability and real-world adaptability.  
 
 ---
 
-## ⚙️ Tech Stack  
+##  Tech Stack  
 | Category | Tools / Frameworks |
 |-----------|-------------------|
 | **Simulation** | Gazebo |
@@ -29,7 +29,7 @@ The project emphasizes realistic implementation by combining **computer vision (
 
 ---
 
-## 🧠 Methodology  
+##  Methodology  
 
 ### 1. Simulation Setup  
 - Selected **Gazebo** after analyzing multiple robotic simulation platforms.  
@@ -60,7 +60,7 @@ The project emphasizes realistic implementation by combining **computer vision (
 
 ---
 
-## 🧪 Testing & Results  
+##  Testing & Results  
 - Conducted multiple tests in varied simulation setups.  
 - The final system successfully:  
   - Followed lanes autonomously.  
@@ -73,7 +73,7 @@ The results demonstrate a strong balance between **optimization efficiency** and
 
 ---
 
-## 📄 License  
+##  License  
 This project is open for academic and research purposes.  
 Please provide proper credit if referenced or modified.  
 
